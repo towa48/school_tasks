@@ -1,0 +1,17 @@
+{
+  "name": "school_tasks",
+  "version": "1.0.0",
+  "description": "School tasks management application",
+  "license": "MIT",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "export:pdf": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.0",
+    "puppeteer": "^25.14.0"
+  }
+}
