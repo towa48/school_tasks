@@ -8,17 +8,24 @@ const exportDir = path.join(rootDir, "export");
 const markdown = new MarkdownIt({ html: true });
 
 async function findInputFiles(args) {
-  if (args.length > 0) {
-    return args
-      .map((file) => path.resolve(process.cwd(), file))
-      .filter((file) => path.basename(file).toLowerCase() !== "readme.md" && path.extname(file) === ".md");
-  }
+  const files = args.length > 0
+    ? args
+        .map((file) => path.resolve(process.cwd(), file))
+        .filter((file) => path.basename(file).toLowerCase() !== "readme.md" && path.extname(file) === ".md")
+    : (await fs.readdir(rootDir))
+        .filter((file) => /^(.*)\.md$/i.test(file) && file.toLowerCase() !== "readme.md")
+        .map((file) => path.join(rootDir, file));
 
-  const files = await fs.readdir(rootDir);
-  return files
-    .filter((file) => /^(.*)\.md$/i.test(file) && file.toLowerCase() !== "readme.md")
-    .sort((left, right) => left.localeCompare(right, "ru"))
-    .map((file) => path.join(rootDir, file));
+  const filesWithModificationTime = await Promise.all(
+    files.map(async (file) => ({
+      file,
+      modifiedAt: (await fs.stat(file)).mtimeMs,
+    })),
+  );
+
+  return filesWithModificationTime
+    .sort((left, right) => right.modifiedAt - left.modifiedAt || left.file.localeCompare(right.file, "ru"))
+    .map(({ file }) => file);
 }
 
 function createHtml(title, content) {
