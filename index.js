@@ -5,16 +5,18 @@ const puppeteer = require("puppeteer");
 
 const rootDir = __dirname;
 const exportDir = path.join(rootDir, "export");
-const markdown = new MarkdownIt();
+const markdown = new MarkdownIt({ html: true });
 
 async function findInputFiles(args) {
   if (args.length > 0) {
-    return args.map((file) => path.resolve(process.cwd(), file));
+    return args
+      .map((file) => path.resolve(process.cwd(), file))
+      .filter((file) => path.basename(file).toLowerCase() !== "readme.md" && path.extname(file) === ".md");
   }
 
   const files = await fs.readdir(rootDir);
   return files
-    .filter((file) => /^Математика, 3 класс\. Вариант \d+\.md$/i.test(file))
+    .filter((file) => /^(.*)\.md$/i.test(file) && file.toLowerCase() !== "readme.md")
     .sort((left, right) => left.localeCompare(right, "ru"))
     .map((file) => path.join(rootDir, file));
 }
