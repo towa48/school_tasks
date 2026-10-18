@@ -7,7 +7,7 @@ const rootDir = __dirname;
 const exportDir = path.join(rootDir, "export");
 const markdown = new MarkdownIt({ html: true });
 
-async function findInputFiles(args) {
+async function findInputFiles(args, limit) {
   const files = args.length > 0
     ? args
         .map((file) => path.resolve(process.cwd(), file))
@@ -23,9 +23,11 @@ async function findInputFiles(args) {
     })),
   );
 
-  return filesWithModificationTime
+  const sorted = filesWithModificationTime
     .sort((left, right) => right.modifiedAt - left.modifiedAt || left.file.localeCompare(right.file, "ru"))
     .map(({ file }) => file);
+
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 function createHtml(title, content) {
@@ -49,7 +51,9 @@ function createHtml(title, content) {
 }
 
 async function main() {
-  const inputFiles = await findInputFiles(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  const limit = /^\d+$/.test(args[0] ?? "") ? Number(args.shift()) : 0;
+  const inputFiles = await findInputFiles(args, limit);
   if (inputFiles.length === 0) {
     throw new Error("Не найдены Markdown-файлы.");
   }
