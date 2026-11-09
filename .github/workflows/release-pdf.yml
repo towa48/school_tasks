@@ -1,0 +1,63 @@
+name: Export PDFs and publish release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  export-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export changed Markdown files and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          previous_tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')"
+
+          if [[ -n "$previous_tag" ]] && git rev-parse --verify "${previous_tag}^{commit}" >/dev/null 2>&1; then
+            mapfile -d '' -t candidates < <(git diff --name-only --diff-filter=AMR -z "$previous_tag" HEAD -- '*.md')
+          else
+            mapfile -d '' -t candidates < <(git ls-files -z -- '*.md')
+          fi
+
+          markdown_files=()
+          for file in "${candidates[@]}"; do
+            [[ "${file,,}" == "readme.md" ]] && continue
+            [[ -f "$file" ]] || continue
+            markdown_files+=("$file")
+          done
+
+          if ((${#markdown_files[@]} > 0)); then
+            npm run export:pdf -- "${markdown_files[@]}"
+          fi
+
+          assets=()
+          for file in "${markdown_files[@]}"; do
+            pdf="export/$(basename "${file%.*}").pdf"
+            [[ -f "$pdf" ]] && assets+=("$pdf")
+          done
+
+          tag="v1.0.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" "${assets[@]}" \
+            --title "Релиз $tag" \
+            --notes "Экспорт в pdf"
