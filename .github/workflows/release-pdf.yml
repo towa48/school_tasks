@@ -29,6 +29,7 @@ jobs:
       - name: Export changed Markdown files and publish release
         env:
           GH_TOKEN: ${{ github.token }}
+          PUPPETEER_DISABLE_SANDBOX: "true"
         run: |
           set -euo pipefail
 

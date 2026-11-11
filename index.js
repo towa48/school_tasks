@@ -59,7 +59,10 @@ async function main() {
   }
 
   await fs.mkdir(exportDir, { recursive: true });
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: process.env.PUPPETEER_DISABLE_SANDBOX === "true" ? ["--no-sandbox", "--disable-setuid-sandbox"] : [],
+  });
 
   try {
     for (const inputFile of inputFiles) {
