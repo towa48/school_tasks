@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          previous_tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          previous_tag="$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')"
 
           if [[ -n "$previous_tag" ]] && git rev-parse --verify "${previous_tag}^{commit}" >/dev/null 2>&1; then
             mapfile -d '' -t candidates < <(git diff --name-only --diff-filter=AMR -z "$previous_tag" HEAD -- '*.md')
@@ -53,12 +53,18 @@ jobs:
           fi
 
           assets=()
+          mkdir -p release-assets
           for file in "${markdown_files[@]}"; do
             pdf="export/$(basename "${file%.*}").pdf"
-            [[ -f "$pdf" ]] && assets+=("$pdf")
+            asset_name="$(printf '%s' "$file" | sha256sum | cut -d ' ' -f 1).pdf"
+            cp "$pdf" "release-assets/$asset_name"
+            assets+=("release-assets/$asset_name#$(basename "$pdf")")
           done
 
-          tag="v1.0.${GITHUB_RUN_NUMBER}"
+          tag="v1.0.${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           gh release create "$tag" "${assets[@]}" \
+            --draft \
+            --target "$GITHUB_SHA" \
             --title "Релиз $tag" \
             --notes "Экспорт в pdf"
+          gh release edit "$tag" --draft=false
