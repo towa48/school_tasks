@@ -6,15 +6,38 @@ const puppeteer = require("puppeteer");
 const rootDir = __dirname;
 const exportDir = path.join(rootDir, "export");
 const markdown = new MarkdownIt({ html: true });
+const classDirectoryPattern = /^\d+\s*класс$/i;
+
+async function findMarkdownFiles(directory) {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await findMarkdownFiles(entryPath));
+    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".md") {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
 
 async function findInputFiles(args, limit) {
-  const files = args.length > 0
-    ? args
-        .map((file) => path.resolve(process.cwd(), file))
-        .filter((file) => path.basename(file).toLowerCase() !== "readme.md" && path.extname(file) === ".md")
-    : (await fs.readdir(rootDir))
-        .filter((file) => /^(.*)\.md$/i.test(file) && file.toLowerCase() !== "readme.md")
-        .map((file) => path.join(rootDir, file));
+  let files;
+  if (args.length > 0) {
+    files = args
+      .map((file) => path.resolve(process.cwd(), file))
+      .filter((file) => path.basename(file).toLowerCase() !== "readme.md" && path.extname(file) === ".md");
+  } else {
+    const classDirectories = (await fs.readdir(rootDir, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() && classDirectoryPattern.test(entry.name));
+    const filesByDirectory = await Promise.all(
+      classDirectories.map((entry) => findMarkdownFiles(path.join(rootDir, entry.name))),
+    );
+    files = filesByDirectory.flat();
+  }
 
   const filesWithModificationTime = await Promise.all(
     files.map(async (file) => ({
